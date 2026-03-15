@@ -6,16 +6,14 @@ const HTTP_PORT = 3000;
 const WS_PORT = 3001;
 
 const app = express();
-app.use('/',      express.static(path.join(__dirname, '..', 'main')));
-app.use('/sub',   express.static(path.join(__dirname, '..', 'sub-display')));
-app.use('/sound', express.static(path.join(__dirname, '..', 'sound')));
+app.use('/',    express.static(path.join(__dirname, '..', 'main')));
+app.use('/sub', express.static(path.join(__dirname, '..', 'sub-display')));
 
 app.listen(HTTP_PORT, '0.0.0.0', () => {
   console.log('');
   console.log('=== baited server ===');
   console.log(`  Main:   http://localhost:${HTTP_PORT}`);
   console.log(`  Sub:    http://localhost:${HTTP_PORT}/sub?id=1`);
-  console.log(`  Sound:  http://localhost:${HTTP_PORT}/sound`);
   console.log(`  WS:     ws://localhost:${WS_PORT}`);
   console.log('');
 });
@@ -47,9 +45,15 @@ wss.on('connection', (ws, req) => {
     } catch (e) {}
   });
 
-  ws.on('close', () => { const i = clients.get(ws); clients.delete(ws); console.log(`[-] ${i?.role} (${ip})`); });
+  ws.on('close', () => {
+    const i = clients.get(ws);
+    clients.delete(ws);
+    console.log(`[-] ${i?.role} (${ip})`);
+  });
 });
 
 setInterval(() => {
-  wss.clients.forEach((c) => { if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify({ type: 'ping' })); });
+  wss.clients.forEach((c) => {
+    if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify({ type: 'ping' }));
+  });
 }, 30000);

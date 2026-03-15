@@ -16,12 +16,23 @@ const CONFIG = {
 let bugs = [];
 let lightWasOn = false;
 let lastBroadcast = 0;
+let started = false;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   textAlign(CENTER, CENTER);
   noCursor();
   for (let i = 0; i < CONFIG.numBugs; i++) bugs.push(new Bug());
+
+  // Click overlay → unlock audio → start
+  const overlay = document.getElementById('start-overlay');
+  if (overlay) {
+    overlay.addEventListener('click', async () => {
+      await sound.init();
+      overlay.classList.add('hidden');
+      started = true;
+    });
+  }
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
@@ -54,6 +65,9 @@ function draw() {
     connection.send({ isLightOn, x: mouseX, y: mouseY });
     lastBroadcast = millis();
   }
+
+  // --- BGM control (added) ---
+  sound.update(isLightOn);
 
   if (new URLSearchParams(location.search).has('dev')) {
     fill(connection.isConnected() ? '#2d2' : '#555');

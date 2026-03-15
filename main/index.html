@@ -7,10 +7,24 @@
     * { margin: 0; padding: 0; }
     html, body { overflow: hidden; background: #141618; }
     canvas { display: block; }
+    #start-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: #141618; display: flex;
+      align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    #start-overlay span {
+      color: #333; font-family: Helvetica Neue, sans-serif;
+      font-size: 18px;
+    }
+    #start-overlay.hidden { display: none; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
   <script src="connection.js"></script>
+  <script src="sound.js"></script>
   <script src="sketch.js"></script>
 </head>
-<body></body>
+<body>
+  <div id="start-overlay"><span>Click to start</span></div>
+</body>
 </html>
