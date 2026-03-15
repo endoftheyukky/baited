@@ -22,6 +22,7 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   textAlign(CENTER, CENTER);
   noCursor();
+  textFont('Yu Mincho');
   for (let i = 0; i < CONFIG.numBugs; i++) bugs.push(new Bug());
 
   // Click overlay → unlock audio → start
