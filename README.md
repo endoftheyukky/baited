@@ -1,65 +1,58 @@
 # baited
-　暗い展⽰室のなかに、懐中電灯を模したデバイスが置かれている。鑑賞者がそれを⼿に取り、正⾯のディスプレイへ光を照射すると、画⾯上に蠢いていた⾍の群れが⼀⻫に光源へ向かって移動を始める。⾍はコンクリートポエトリーの⼿法によって⽂字で構成されており、集合と離散を繰り返すその運動は、群れの物理演算よってリアルタイムに⽣成されている。⼿元の動きがセンサーによって座標へと変換され、⾝体の振る舞いがそのまま画⾯上の反応を駆動するこの回路においては、⾏為と応答のあいだの遅延が限りなく圧縮されている。
 
-　懐中電灯のスイッチが制御するのは、⾍の挙動にとどまらない。光を灯すと、メインディスプレイの周囲に配置されたサブディスプレイに、⼈々の関⼼を収集するために設計された扇情的な映像が再⽣される。同時にアンビエントの⾳響が展⽰室を満たし、空間全体がひとつの刺激環境として起動する。消灯すれば、映像は停⽌し、⾳は途絶え、空間は再び静寂へと戻る。ここでは、ひとつの接点への⼀触が空間の静と動のすべてを決定しており、その即応性の構造は、スクリーンをタップした瞬間にコンテンツが現れ、閉じた瞬間に消える現在の情報環境と同型である。
+**体験型インスタレーション — 走光性とアテンションエコノミー**
 
-　走光性とは、光源に対する生物の無条件の接近反応を指す。そこには認知も判断も介在せず、刺激と反応のあいだに余白は存在しない。人々の注意を資源として抽出し続けるアテンションエコノミーの構造は、関心の発生から目的と意味を削ぎ落とし、反応の純度を高めることによって成立している。光に向かう虫と、スクリーンに向かう手のあいだに構造的な差異がもはや残されていない現在を、本作は「baited」として提示する。
+鑑賞者が懐中電灯型デバイスで光を照射すると、ディスプレイ上の虫の群れが光源に集まり、やがて飽きて離散する。人々の注意と関心が資源として抽出される「アテンションエコノミー」の構造を、虫の走光性に翻訳した作品。
 
+虫の動きは、対数螺旋（光コンパス反応）、レヴィフライト、ラン・アンド・タンブル、馴化といった実在の昆虫行動研究に基づくアルゴリズムで生成されている。
 
-## セットアップ
+> 2026 Hosei University Composite Art Circle — Palette
+
+## System
+
+```
+[Wii Remote] → Bluetooth → [Main PC] → HDMI → [Main Monitor]
+                                │
+                            WebSocket
+                          ┌─────┼─────┐
+                        [iPad] [iPad] [iPad]
+                                │
+                            [Speaker]
+```
+
+詳細は [ARCHITECTURE.md](./ARCHITECTURE.md) を参照。
+
+![機材構成図](./docs/hardware-diagram.png)
+![システム構成図](./docs/system-diagram.png)
+
+## Quick Start
 
 ```bash
-cd baited
 npm install
-```
-
-## 起動
-
-```bash
 npm start
+# → http://localhost:3000
 ```
 
-ブラウザで以下を開く:
+| URL | 用途 |
+|-----|------|
+| `localhost:3000` | メイン映像（虫） |
+| `localhost:3000?fullscreen=1` | 全画面モード |
+| `localhost:3000/sound` | アンビエントBGM |
+| `<IP>:3000/sub?id=1,2,3` | サブディスプレイ（iPad） |
 
-| URL | 用途 | 出力先 |
-|-----|------|--------|
-| `http://localhost:3000` | メイン映像（虫） | HDMIで外部モニター |
-| `http://localhost:3000?fullscreen=1` | 同上（全画面） | |
-| `http://localhost:3000/sound` | アンビエントBGM | PCのスピーカー |
-| `http://<PCのIP>:3000/sub?id=1` | サブ映像 1 | iPad 1 |
-| `http://<PCのIP>:3000/sub?id=2` | サブ映像 2 | iPad 2 |
-| `http://<PCのIP>:3000/sub?id=3` | サブ映像 3 | iPad 3 |
-
-## サーバーなしで動かす
-
-`main/index.html` をブラウザで直接開く。虫のシミュレーションだけ動く。
-
-## メディアファイルの配置
+## Media Files (not in repo)
 
 ```
-sub-display/videos/
-  video-1.mp4    ← iPad 1 の映像
-  video-2.mp4    ← iPad 2 の映像
-  video-3.mp4    ← iPad 3 の映像
-
-sound/audio/
-  ambient.mp3    ← アンビエントBGM
+sub-display/videos/video-1.mp4, video-2.mp4, video-3.mp4
+sound/audio/ambient.mp3
 ```
 
-## パラメータ調整
+## Credits
 
-`main/sketch.js` 冒頭の `CONFIG`:
-
-| パラメータ | 現在値 | 説明 |
-|-----------|--------|------|
-| `numBugs` | 250 | 虫の数 |
-| `lightRadius` | 220 | 光の円の半径 (px) |
-| `reactionDelayMax` | 300 | 光ON後の反応遅延 (0〜この値フレーム) |
-| `decayRateMin/Max` | 0.0004 / 0.0012 | 飽き速度 (小さい=遅い) |
-| `recoveryRate` | 0.006 | 光OFF時の興味回復速度 |
-| `boredomThreshold` | 0.15 | この値以下で飽き判定 |
-
-
-## 詳細
-
-`ARCHITECTURE.md` を参照。
+| Role | Name |
+|------|------|
+| Direction / Creative Coding | Yuki Sunaga |
+| Planner / System Engineering | Riko Fukami |
+| Video Direction | Chiyori Oba |
+| Video Edit | Yuki Sato |
+| Sound Design | Mai Aritsuka |
