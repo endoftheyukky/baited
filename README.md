@@ -28,6 +28,7 @@ npm start
 | `http://<PCのIP>:3000/sub?id=1` | サブ映像 1 | iPad 1 |
 | `http://<PCのIP>:3000/sub?id=2` | サブ映像 2 | iPad 2 |
 | `http://<PCのIP>:3000/sub?id=3` | サブ映像 3 | iPad 3 |
+| `<IP>:3000/status` | 接続状態モニター | スマホ等 |
 
 メイン画面は起動時に「Click to start」が表示される。クリックするとオーディオが有効化され、シミュレーションが開始する。
 
