@@ -225,3 +225,8 @@ class Bug {
     push(); translate(this.pos.x, this.pos.y); rotate(rot); text(this.char, 0, 0); pop();
   }
 }
+
+function keyPressed() {
+  controls.handleKey(keyCode, key);
+  return false; // prevent browser default
+}
