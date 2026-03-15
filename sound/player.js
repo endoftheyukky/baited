@@ -1,101 +1,114 @@
-// ============================================================
-//  baited — sound/player.js
-//
-//  Plays ambient BGM loop via Web Audio API.
-//  Fades in when light is ON, fades out when OFF.
-//  Requires user click to unlock audio context (browser policy).
-//
-//  Place your audio file at: sound/audio/ambient.mp3
-// ============================================================
-
-const AUDIO_SRC = 'audio/ambient.mp3';
-const FADE_IN_TIME  = 1.5;  // seconds
-const FADE_OUT_TIME = 2.0;  // seconds
+const TRACKS = {
+  bgm: {
+    src: 'audio/ambient.mp3',
+    fadeIn: 2.0,
+    fadeOut: 2.5,
+    maxVolume: 0.7,
+    delay: 0,
+  },
+  se: {
+    src: 'audio/bugs.mp3',
+    fadeIn: 0.8,
+    fadeOut: 1.5,
+    maxVolume: 0.5,
+    delay: 0.3,
+  }
+};
 
 let audioCtx = null;
-let gainNode = null;
-let sourceNode = null;
-let audioBuffer = null;
-let isAudioReady = false;
+let tracks = {};
 let isCurrentlyOn = false;
 
-const indicator = document.getElementById('indicator');
+const indBgm = document.getElementById('ind-bgm');
+const indSe = document.getElementById('ind-se');
 const stateLabel = document.getElementById('state-label');
 const startBtn = document.getElementById('start-btn');
 
-// --- Audio init (must be triggered by user gesture) ---
 async function initAudio() {
   startBtn.classList.add('hidden');
+  stateLabel.textContent = 'loading audio...';
 
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  gainNode = audioCtx.createGain();
-  gainNode.gain.value = 0;
-  gainNode.connect(audioCtx.destination);
 
-  // Load audio file
-  try {
-    stateLabel.textContent = 'loading audio...';
-    const response = await fetch(AUDIO_SRC);
-    const arrayBuffer = await response.arrayBuffer();
-    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    isAudioReady = true;
-    stateLabel.textContent = 'ready — waiting for light';
-    indicator.style.color = '#555';
-    console.log('[sound] Audio loaded and ready');
-  } catch (e) {
-    stateLabel.textContent = 'audio load failed — check audio/ambient.mp3';
-    indicator.style.color = '#a33';
-    console.error('[sound] Failed to load audio:', e);
+  let loadedCount = 0;
+  const trackNames = Object.keys(TRACKS);
+
+  for (const name of trackNames) {
+    const config = TRACKS[name];
+    try {
+      const response = await fetch(config.src);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.value = 0;
+      gainNode.connect(audioCtx.destination);
+
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(gainNode);
+      source.start(0);
+
+      tracks[name] = { gain: gainNode, source, buffer, ready: true, config };
+      loadedCount++;
+      stateLabel.textContent = `loaded ${loadedCount}/${trackNames.length}...`;
+    } catch (e) {
+      console.warn(`[sound] Failed to load ${name}: ${e.message}`);
+      tracks[name] = { ready: false, config };
+    }
+  }
+
+  if (loadedCount === 0) {
+    stateLabel.textContent = 'no audio files found — check audio/ folder';
     return;
   }
-
-  // Start looping source (always running, volume controls audibility)
-  startLoop();
+  stateLabel.textContent = `ready (${loadedCount} track${loadedCount > 1 ? 's' : ''})`;
 }
 
-function startLoop() {
-  if (sourceNode) {
-    try { sourceNode.stop(); } catch (e) {}
-  }
-  sourceNode = audioCtx.createBufferSource();
-  sourceNode.buffer = audioBuffer;
-  sourceNode.loop = true;
-  sourceNode.connect(gainNode);
-  sourceNode.start(0);
-}
-
-function fadeIn() {
-  if (!isAudioReady || isCurrentlyOn) return;
-  isCurrentlyOn = true;
-
+function fadeIn(track) {
+  if (!track.ready) return;
   if (audioCtx.state === 'suspended') audioCtx.resume();
+  const now = audioCtx.currentTime;
+  const start = now + track.config.delay;
+  track.gain.gain.cancelScheduledValues(now);
+  track.gain.gain.setValueAtTime(track.gain.gain.value, now);
+  track.gain.gain.setValueAtTime(track.gain.gain.value, start);
+  track.gain.gain.linearRampToValueAtTime(track.config.maxVolume, start + track.config.fadeIn);
+}
 
-  gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-  gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
-  gainNode.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + FADE_IN_TIME);
+function fadeOut(track) {
+  if (!track.ready) return;
+  const now = audioCtx.currentTime;
+  track.gain.gain.cancelScheduledValues(now);
+  track.gain.gain.setValueAtTime(track.gain.gain.value, now);
+  track.gain.gain.linearRampToValueAtTime(0, now + track.config.fadeOut);
+}
 
-  indicator.style.color = '#eee';
+function lightOn() {
+  if (isCurrentlyOn) return;
+  isCurrentlyOn = true;
+  for (const name in tracks) fadeIn(tracks[name]);
+  indBgm.classList.add('on');
+  indSe.classList.add('on');
   stateLabel.textContent = 'playing';
 }
 
-function fadeOut() {
-  if (!isAudioReady || !isCurrentlyOn) return;
+function lightOff() {
+  if (!isCurrentlyOn) return;
   isCurrentlyOn = false;
-
-  gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-  gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
-  gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + FADE_OUT_TIME);
-
-  indicator.style.color = '#555';
+  for (const name in tracks) fadeOut(tracks[name]);
+  indBgm.classList.remove('on');
+  indSe.classList.remove('on');
   stateLabel.textContent = 'silent';
 }
 
 function onState(state) {
-  if (state.isLightOn) fadeIn();
-  else fadeOut();
+  if (state.isLightOn) lightOn();
+  else lightOff();
 }
 
-// --- WebSocket ---
 const wsUrl = `ws://${location.hostname}:3001`;
 let ws = null;
 
@@ -104,7 +117,6 @@ function connect() {
     ws = new WebSocket(wsUrl);
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'register', role: 'sound' }));
-      console.log('[sound] Connected to server');
     };
     ws.onmessage = (event) => {
       try {
@@ -112,14 +124,9 @@ function connect() {
         if (msg.type === 'state') onState(msg);
       } catch (e) {}
     };
-    ws.onclose = () => {
-      console.log('[sound] Disconnected, reconnecting...');
-      setTimeout(connect, 2000);
-    };
+    ws.onclose = () => { setTimeout(connect, 2000); };
     ws.onerror = () => ws.close();
-  } catch (e) {
-    setTimeout(connect, 2000);
-  }
+  } catch (e) { setTimeout(connect, 2000); }
 }
 
 connect();
