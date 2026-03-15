@@ -56,12 +56,6 @@ sound/audio/
 | `recoveryRate` | 0.006 | 光OFF時の興味回復速度 |
 | `boredomThreshold` | 0.15 | この値以下で飽き判定 |
 
-## オフライン対応
-
-1. https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js を保存
-2. `main/` に配置
-3. `main/index.html` の CDN パスをローカルに変更
-
 ## 詳細
 
 `ARCHITECTURE.md` を参照。
