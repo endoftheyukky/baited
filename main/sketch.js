@@ -1,7 +1,3 @@
-// ============================================================
-//  baited — sketch.js (Main Display)
-// ============================================================
-
 const CONFIG = {
   numBugs: 250,
   lightRadius: 220,
@@ -17,6 +13,7 @@ let bugs = [];
 let lightWasOn = false;
 let lastBroadcast = 0;
 let started = false;
+let isLightOn = false;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -25,7 +22,6 @@ function setup() {
   textFont('Yu Mincho');
   for (let i = 0; i < CONFIG.numBugs; i++) bugs.push(new Bug());
 
-  // Click overlay → unlock audio → start
   const overlay = document.getElementById('start-overlay');
   if (overlay) {
     overlay.addEventListener('click', async () => {
@@ -39,21 +35,61 @@ function setup() {
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 function draw() {
-  background(20, 22, 24);
+  background(0);
 
-  let isLightOn = mouseIsPressed;
   let lightPos = createVector(mouseX, mouseY);
   let r = CONFIG.lightRadius;
   let lightJustOn = isLightOn && !lightWasOn;
   lightWasOn = isLightOn;
 
   if (isLightOn) {
-    drawingContext.shadowBlur = 120;
-    drawingContext.shadowColor = "rgba(255,255,255,0.3)";
-    fill(255, 255, 255, 20);
+    let ctx = drawingContext;
+    let cx = lightPos.x, cy = lightPos.y;
+
+    // Layer 1: Wide ambient glow
+    let outerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 1.8);
+    outerGlow.addColorStop(0, 'rgba(255,255,240,0.06)');
+    outerGlow.addColorStop(0.5, 'rgba(255,255,235,0.03)');
+    outerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = outerGlow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 1.8, 0, TWO_PI);
+    ctx.fill();
+
+    // Layer 2: Main beam (inverse square falloff)
+    let mainBeam = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    mainBeam.addColorStop(0, 'rgba(255,255,245,0.18)');
+    mainBeam.addColorStop(0.15, 'rgba(255,255,240,0.14)');
+    mainBeam.addColorStop(0.4, 'rgba(255,255,235,0.08)');
+    mainBeam.addColorStop(0.7, 'rgba(255,250,230,0.03)');
+    mainBeam.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = mainBeam;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, TWO_PI);
+    ctx.fill();
+
+    // Layer 3: Hot center spot
+    let hotspot = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.3);
+    hotspot.addColorStop(0, 'rgba(255,255,250,0.22)');
+    hotspot.addColorStop(0.5, 'rgba(255,255,245,0.08)');
+    hotspot.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = hotspot;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.3, 0, TWO_PI);
+    ctx.fill();
+
+    // Layer 4: Subtle dust/atmosphere (noise-like speckle)
     noStroke();
-    circle(lightPos.x, lightPos.y, r * 2);
-    drawingContext.shadowBlur = 0;
+    for (let i = 0; i < 40; i++) {
+      let angle = random(TWO_PI);
+      let dist = sqrt(random()) * r * 1.2;
+      let px = cx + cos(angle) * dist;
+      let py = cy + sin(angle) * dist;
+      let intensity = map(dist, 0, r * 1.2, 12, 2);
+      let size = random(1.5, 4);
+      fill(255, 255, 245, intensity);
+      circle(px, py, size);
+    }
   }
 
   for (let bug of bugs) {
@@ -67,7 +103,6 @@ function draw() {
     lastBroadcast = millis();
   }
 
-  // --- BGM control (added) ---
   sound.update(isLightOn);
 
   if (new URLSearchParams(location.search).has('dev')) {
@@ -78,9 +113,18 @@ function draw() {
 }
 
 function mousePressed() {
+  if (!started) return;
+
   if (new URLSearchParams(location.search).has('fullscreen')) {
-    if (!fullscreen()) fullscreen(true);
+    if (!fullscreen()) { fullscreen(true); return; }
   }
+
+  isLightOn = !isLightOn;
+}
+
+function keyPressed() {
+  controls.handleKey(keyCode, key);
+  return false;
 }
 
 function levyStep(min, max, mu) {
@@ -194,17 +238,32 @@ class Bug {
     } else if (this.state === 'stop' && this.stateTimer <= 0) { att ? this.nextRun() : random() < 0.7 ? this.nextTumble() : this.nextRun(); }
     else if (this.state === 'tumble' && this.stateTimer <= 0) this.nextRun();
 
-    let s = 0;
-    if (this.state === 'tumble') { s = this.tumbleAmount / 8; }
-    else if (this.state === 'run') {
-      if (ins) { s = this.millingBehavior(lp, lr) + this.stayInLight(lp, lr); this.speed = this.baseSpeed * random(0.3, 0.6); }
-      else if (att) { s = this.phototaxisSteering(lp); this.speed = this.baseSpeed * this.approachSpeedMult * map(d, lr, dr, 1, 0.7) * random(0.9, 1.1); }
-      else if (aw && this.interest <= CONFIG.boredomThreshold) { s = d < dr ? -this.phototaxisSteering(lp) * 0.35 + random(-0.06, 0.06) : this.levyWander(); this.speed = this.baseSpeed * random(0.5, 0.9); }
-      else { s = this.levyWander(); }
-      s += this.separate(all) + random(-0.01, 0.01);
+    let steer = 0;
+
+    if (this.state === 'tumble') {
+      steer = this.tumbleAmount / 8;
+
+    } else if (this.state === 'run') {
+      if (ins) {
+        steer = this.millingBehavior(lp, lr) + this.stayInLight(lp, lr);
+        this.speed = this.baseSpeed * random(0.3, 0.6);
+
+      } else if (att) {
+        steer = this.phototaxisSteering(lp);
+        this.speed = this.baseSpeed * this.approachSpeedMult * map(d, lr, dr, 1, 0.7) * random(0.9, 1.1);
+
+      } else if (aw && this.interest <= CONFIG.boredomThreshold) {
+        steer = d < dr ? -this.phototaxisSteering(lp) * 0.35 + random(-0.06, 0.06) : this.levyWander();
+        this.speed = this.baseSpeed * random(0.5, 0.9);
+
+      } else {
+        steer = this.levyWander();
+      }
+
+      steer += this.separate(all) + random(-0.01, 0.01);
     }
 
-    this.heading += constrain(s, -this.turnRate * 5, this.turnRate * 5);
+    this.heading += constrain(steer, -this.turnRate * 5, this.turnRate * 5);
     this.vel.x = cos(this.heading) * this.speed;
     this.vel.y = sin(this.heading) * this.speed;
     this.vel.mult(map(noise(this.tremorPhase * 0.3 + frameCount * 0.03), 0, 1, 0.91, 0.98));
@@ -225,9 +284,4 @@ class Bug {
     textSize(this.baseSize + sin(frameCount * 0.03 + this.tremorPhase));
     push(); translate(this.pos.x, this.pos.y); rotate(rot); text(this.char, 0, 0); pop();
   }
-}
-
-function keyPressed() {
-  controls.handleKey(keyCode, key);
-  return false; // prevent browser default
 }
