@@ -46,7 +46,6 @@ function draw() {
     let ctx = drawingContext;
     let cx = lightPos.x, cy = lightPos.y;
 
-    // Layer 1: Wide ambient glow
     let outerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 1.8);
     outerGlow.addColorStop(0, 'rgba(255,255,240,0.06)');
     outerGlow.addColorStop(0.5, 'rgba(255,255,235,0.03)');
@@ -56,7 +55,6 @@ function draw() {
     ctx.arc(cx, cy, r * 1.8, 0, TWO_PI);
     ctx.fill();
 
-    // Layer 2: Main beam (inverse square falloff)
     let mainBeam = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
     mainBeam.addColorStop(0, 'rgba(255,255,245,0.18)');
     mainBeam.addColorStop(0.15, 'rgba(255,255,240,0.14)');
@@ -68,7 +66,6 @@ function draw() {
     ctx.arc(cx, cy, r, 0, TWO_PI);
     ctx.fill();
 
-    // Layer 3: Hot center spot
     let hotspot = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.3);
     hotspot.addColorStop(0, 'rgba(255,255,250,0.22)');
     hotspot.addColorStop(0.5, 'rgba(255,255,245,0.08)');
@@ -78,7 +75,6 @@ function draw() {
     ctx.arc(cx, cy, r * 0.3, 0, TWO_PI);
     ctx.fill();
 
-    // Layer 4: Subtle dust/atmosphere (noise-like speckle)
     noStroke();
     for (let i = 0; i < 40; i++) {
       let angle = random(TWO_PI);
@@ -153,7 +149,9 @@ class Bug {
     this.decayRate = random(CONFIG.decayRateMin, CONFIG.decayRateMax);
     this.levyTarget = null; this.levyMu = random(1.8, 2.2);
     this.millingAngle = random(TWO_PI); this.millingDir = this.handedness;
-    this.millingSpeed = random(0.008, 0.03); this.millingRadius = 0;
+    this.millingSpeed = random(0.008, 0.03);
+    this.millingRadius = 0;
+    this.preferredOrbitRadius = 0;
     this.baseSize = random(14, 24); this.char = "虫";
     this.tremorPhase = random(TWO_PI); this.tremorFreq = random(0.06, 0.15);
     this.legPhase = random(TWO_PI);
@@ -189,16 +187,18 @@ class Bug {
   millingBehavior(lp, lr) {
     this.millingAngle += this.millingDir * this.millingSpeed;
     if (random() < 0.005) this.millingDir *= -1;
-    if (random() < 0.008) this.millingRadius = sqrt(random()) * lr * 0.9;
+
+    // Preferred orbit radius: Gaussian around 0.5 * lr
+    if (this.preferredOrbitRadius === 0 || random() < 0.005) {
+      let u1 = random(0.001, 1), u2 = random(0.001, 1);
+      let z = sqrt(-2 * log(u1)) * cos(TWO_PI * u2);
+      this.preferredOrbitRadius = constrain((0.5 + z * 0.12) * lr, lr * 0.15, lr * 0.85);
+    }
+    this.millingRadius = lerp(this.millingRadius, this.preferredOrbitRadius, 0.02);
+
     let t = createVector(lp.x + cos(this.millingAngle) * this.millingRadius, lp.y + sin(this.millingAngle) * this.millingRadius);
     let e = atan2(sin(p5.Vector.sub(t, this.pos).heading() - this.heading), cos(p5.Vector.sub(t, this.pos).heading() - this.heading));
     return e * this.turnRate * 2.5;
-  }
-
-  stayInLight(lp, lr) {
-    let d = p5.Vector.dist(this.pos, lp);
-    if (d > lr * 0.85) { let e = atan2(sin(p5.Vector.sub(lp, this.pos).heading() - this.heading), cos(p5.Vector.sub(lp, this.pos).heading() - this.heading)); return e * map(d, lr * 0.85, lr, 0, 0.15); }
-    return 0;
   }
 
   separate(all) {
@@ -245,7 +245,7 @@ class Bug {
 
     } else if (this.state === 'run') {
       if (ins) {
-        steer = this.millingBehavior(lp, lr) + this.stayInLight(lp, lr);
+        steer = this.millingBehavior(lp, lr);
         this.speed = this.baseSpeed * random(0.3, 0.6);
 
       } else if (att) {
