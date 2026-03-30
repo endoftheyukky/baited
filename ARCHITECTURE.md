@@ -1,7 +1,6 @@
 # baited — System Architecture
 
 ## 全体構成図
-
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                    Input Layer                                    │
@@ -23,86 +22,88 @@
 │  │  │ シミュレーション│  │ BGM制御   │  │ UI調整 │ │                │
 │  │  └──────┬──────┘  └─────┬─────┘  └────────┘ │                │
 │  │         │               │                     │                │
-│  │         │          Audio Out ──────────▶ [スピーカー]          │
-│  │         │                                     │                │
-│  │  ┌──────▼──────┐                              │                │
-│  │  │connection.js│── WebSocket ──▶ [server]     │                │
+│  │         │          Audio Out                   │                │
+│  │         │               │                     │                │
+│  │  ┌──────▼──────┐        │                     │                │
+│  │  │connection.js│── WS ──▶ [server]            │                │
 │  │  └─────────────┘                              │                │
 │  └──────────┬────────────────────────────────────┘                │
-│             │ HDMI                                                 │
+│             │ HDMI (映像 + 音声)                                   │
 │             ▼                                                      │
-│  ┌──────────────────┐          ┌──────────────────┐              │
-│  │  Main Monitor    │          │  server/index.js  │              │
-│  │  大画面TV         │          │  Express + WS      │              │
-│  │  (虫の映像)       │          │  :3000 HTTP        │              │
-│  └──────────────────┘          │  :3001 WebSocket   │              │
-│                                 └────────┬─────────┘              │
+│  ┌──────────────────┐          ┌──────────────────────┐          │
+│  │  Main Monitor    │          │  server/index.js      │          │
+│  │  大画面TV         │          │  Express + WS + Logger│          │
+│  │  (虫の映像 + BGM) │          │  :3000 HTTP           │          │
+│  └──────────────────┘          │  :3001 WebSocket      │          │
+│                                 │                       │          │
+│                                 │  /status   接続監視    │          │
+│                                 │  /analytics 体験記録   │          │
+│                                 └────────┬──────────────┘          │
 │                                          │ broadcast               │
 ├──────────────────────────────────────────┼────────────────────────┤
 │                  Network Layer            │                        │
 │                                           ▼                        │
 │                              ┌──────────────────────┐             │
 │                              │   Wi-Fi ルーター      │             │
-│                              └──┬────────┬────────┬─┘             │
-│                                 │        │        │               │
-├─────────────────────────────────┼────────┼────────┼───────────────┤
-│                  Client Layer   │        │        │               │
-│                                 ▼        ▼        ▼               │
-│                            ┌────────┬────────┬────────┐          │
-│                            │ iPad 1 │ iPad 2 │ iPad 3 │          │
-│                            │ 映像:A │ 映像:B │ 映像:C │          │
-│                            │ +音声  │ +音声  │ +音声  │          │
-│                            └────────┴────────┴────────┘          │
-│                              sub-display/                         │
-│                              WebSocket client                     │
-│                              JS/HTML + <video>                    │
+│                              └──────────┬───────────┘             │
+│                                          │                         │
+├──────────────────────────────────────────┼────────────────────────┤
+│                  Client Layer            │                         │
+│                                          ▼                         │
+│                                    ┌──────────┐                   │
+│                                    │  iPad     │                   │
+│                                    │  ピエロ映像 │                   │
+│                                    │  (muted)  │                   │
+│                                    └──────────┘                   │
+│                                    sub-display/                    │
+│                                    WebSocket client                │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
 ## フォルダ構成
-
 ```
 baited/
-├── package.json           ← npm install / npm start
-├── README.md              ← セットアップ手順
-├── ARCHITECTURE.md        ← この文書
+├── package.json
+├── README.md
+├── ARCHITECTURE.md
 │
-├── server/                ← WebSocket + HTTPサーバー
-│   └── index.js           ← 静的ファイル配信 + WS中継
+├── server/
+│   └── index.js            ← HTTP + WebSocket + analytics logger
 │
-├── main/                  ← メインディスプレイ（虫 + BGM）
-│   ├── index.html         ← Click to start オーバーレイ付き
-│   ├── sketch.js          ← p5.js シミュレーション本体
-│   ├── connection.js      ← WS送信モジュール
-│   ├── sound.js           ← Web Audio BGM（光ON/OFFでフェード）
-│   ├── controls.js        ← キーボードでパラメータ調整
+├── main/                   ← メインディスプレイ（虫 + BGM）
+│   ├── index.html          ← Click to start オーバーレイ付き
+│   ├── sketch.js           ← p5.js シミュレーション本体
+│   ├── connection.js       ← WS送信モジュール
+│   ├── sound.js            ← Web Audio BGM（光ON/OFFでフェード）
+│   ├── controls.js         ← Dキーでパラメータ調整
 │   └── audio/
-│       └── ambient.mp3    ← アンビエントBGM
+│       └── baited.wav
 │
-└── sub-display/           ← サブディスプレイ（iPad × 3）
-    ├── index.html         ← Tap to start オーバーレイ付き
-    ├── client.js          ← WS受信 → 映像+音声制御
-    └── videos/
-        ├── video-1.mp4    ← 映像+音声
-        ├── video-2.mp4
-        └── video-3.mp4
+├── sub-display/            ← サブディスプレイ（iPad）
+│   ├── index.html          ← muted自動再生
+│   ├── client.js           ← WS受信 → 映像制御
+│   └── videos/
+│       └── video-1.mp4     ← ピエロ映像（ミュート再生）
+│
+└── logs/                   ← 体験データ（自動生成）
+    └── YYYY-MM-DD.jsonl
 ```
 
 ## WebSocket プロトコル
 
 ### ポート
-- HTTP: 3000 (静的ファイル配信)
+- HTTP: 3000
 - WebSocket: 3001
 
 ### メッセージ形式
 
-#### クライアント登録（接続時に送信）
+#### クライアント登録
 ```json
-{ "type": "register", "role": "main" }    // メインディスプレイ
-{ "type": "register", "role": "sub" }     // iPad
+{ "type": "register", "role": "main" }
+{ "type": "register", "role": "sub", "id": "1" }
 ```
 
-#### 状態更新（Main → Server → 全クライアント）
+#### 状態更新（Main → Server → iPad）
 ```json
 {
   "type": "state",
@@ -114,78 +115,96 @@ baited/
 ```
 
 ### データフロー
-
 ```
-[sketch.js] ──50ms間隔──▶ [server] ──即座に転送──▶ [iPad 1,2,3]
-     │
-     └──▶ [sound.js]  (同一ページ内、直接参照、遅延なし)
+[sketch.js] ──50ms間隔──▶ [server] ──即座に転送──▶ [iPad]
+     │                        │
+     └──▶ [sound.js]          └──▶ [logs/YYYY-MM-DD.jsonl]
+          (同一ページ内)             (ON/OFF時に記録)
 ```
 
 ## 各モジュールの責務
 
 ### server/index.js
-- Express で静的ファイルを配信
-  - `/` → main/
-  - `/sub` → sub-display/
-- WebSocket でメッセージを中継
-- メインからの state を全サブクライアントへブロードキャスト
+- Express で静的ファイルを配信（`/` → main, `/sub` → sub-display）
+- WebSocket でメイン → iPadへ状態を中継
+- 光のON/OFFをJSONLログに記録
+- `/status` — 接続中端末の一覧（5秒自動更新）
+- `/analytics` — 日別・時間帯別の体験データ閲覧
+- `/analytics/raw?date=YYYY-MM-DD` — 生データダウンロード
 
 ### main/sketch.js
-- p5.js 虫シミュレーション
+- p5.js 虫シミュレーション（走光性アルゴリズム）
 - mouseIsPressed → isLightOn
-- mouseX, mouseY → 光の座標
 - connection.js 経由で state を送信
-- sound.update(isLightOn) を毎フレーム呼び出し
+- sound.update(isLightOn) で BGM 制御
 - サーバーなしでも単体動作可能
 
 ### main/sound.js
 - Web Audio API でアンビエントBGMをループ再生
-- isLightOn === true → フェードイン (1.5s)
-- isLightOn === false → フェードアウト (2.0s)
+- isLightOn → フェードイン (1.5s) / フェードアウト (2.0s)
 - オーディオファイル未配置でもエラーなく動作
 
 ### main/controls.js
 - D キーでパラメータパネル表示
-- ↑↓←→ でリアルタイム調整
-- R で全パラメータをデフォルトに戻す
-- アクティブな虫の数・FPSを表示
+- ↑↓←→ でリアルタイム調整、R でリセット
+- アクティブな虫の数・FPS をリアルタイム表示
 
 ### sub-display/client.js
 - WebSocket で state を受信
-- isLightOn === true → 動画再生（フェードイン、音声あり）
-- isLightOn === false → 動画停止（フェードアウト）
-- URLパラメータ `?id=N` で再生する映像を切替
-- Tap to start で iOS の Autoplay 制限を解除
+- isLightOn → ピエロ映像フェードイン / フェードアウト
+- muted再生のためタップ不要で自動待機
+- URLパラメータ `?id=N` で映像切替（拡張用に3台対応を維持）
+
+## Analytics（体験データ記録）
+
+### 記録タイミング
+光のON/OFFイベント時のみ。サーバー負荷ほぼゼロ。
+
+### 記録データ
+```json
+{
+  "type": "session",
+  "id": 1,
+  "onTime": "2026-04-01T10:23:45.123Z",
+  "offTime": "2026-04-01T10:24:12.456Z",
+  "duration": 27.3,
+  "startX": 500,
+  "startY": 300,
+  "endX": 480,
+  "endY": 320
+}
+```
+
+### 確認方法（同一Wi-Fi内のスマホから）
+- `/analytics` — 日ごとの概要
+- `/analytics?date=2026-04-01` — 時間帯別分布、体験時間の分布、全セッション一覧
+- `/analytics/raw?date=2026-04-01` — JSONLダウンロード
+
+### 分析できること
+- 日ごと・時間帯ごとの体験者数
+- 体験時間の平均・最短・最長・分布
+- セッション間の空白時間（人が途切れた時間）
+- 鑑賞者の「馴化カーブ」と虫のアルゴリズム上の馴化の比較
 
 ## 起動手順（展示当日）
-
 ```bash
-# 1. メインPCで
+# 1. メインPC
 cd baited
-npm install    # 初回のみ
 npm start
 
-# 2. メインブラウザ（Chrome推奨）
-# http://localhost:3000 を開く → 「Click to start」をクリック
-# → HDMI外部モニターに虫の映像、PCスピーカーからBGM
+# 2. Chrome で http://localhost:3000 を開く
+#    「Click to start」をクリック → 外部モニターに移動 → F11で全画面
 
-# 3. 各iPadのSafari
-# iPad 1: http://<PCのIP>:3000/sub?id=1 → 「Tap to start」をタップ
-# iPad 2: http://<PCのIP>:3000/sub?id=2 → 同上
-# iPad 3: http://<PCのIP>:3000/sub?id=3 → 同上
+# 3. iPad の Safari で http://<PCのIP>:3000/sub?id=1 を開く
+#    タップ不要、自動で待機状態になる
 
 # 4. Wiimoteドライバーを起動してペアリング
 
 # 5. (任意) パラメータ調整: D キーでパネル表示
+# 6. (任意) スマホで http://<PCのIP>:3000/status を開いて接続確認
 ```
 
 ## ネットワーク要件
 - メインPC と iPad が同一LANに接続
 - インターネット不要（p5.jsローカル保存で完全オフライン可）
-- Wi-Fiルーター 1台（5GHz推奨、レイテンシ低減）
-
-## オフライン対応
-
-1. https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js をダウンロード
-2. `main/` フォルダに配置
-3. `main/index.html` の CDN パスを `<script src="p5.min.js">` に変更
+- Wi-Fiルーター 1台（自前持ち込み推奨、5GHz推奨）
