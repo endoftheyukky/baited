@@ -13,7 +13,6 @@ let bugs = [];
 let lightWasOn = false;
 let lastBroadcast = 0;
 let started = false;
-let isLightOn = false;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -35,6 +34,7 @@ function setup() {
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 function draw() {
+  let isLightOn = mouseIsPressed;
   background(0);
 
   let lightPos = createVector(mouseX, mouseY);
@@ -112,10 +112,8 @@ function mousePressed() {
   if (!started) return;
 
   if (new URLSearchParams(location.search).has('fullscreen')) {
-    if (!fullscreen()) { fullscreen(true); return; }
+    if (!fullscreen()) fullscreen(true);
   }
-
-  isLightOn = !isLightOn;
 }
 
 function keyPressed() {

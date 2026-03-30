@@ -1,36 +1,19 @@
 (() => {
   const params = new URLSearchParams(location.search);
   const displayId = params.get('id') || '1';
-  const videoSrc = `videos/video-${displayId}.mp4`;
+  const videoSrc = `videos/video-${displayId}.MOV`;
 
   const video = document.getElementById('video');
   const status = document.getElementById('status');
-  const overlay = document.getElementById('start-overlay');
 
   video.src = videoSrc;
   video.load();
+  video.play().then(() => video.pause()).catch(() => {});
 
-  let audioUnlocked = false;
   let isPlaying = false;
   let fadeOutTimer = null;
 
-  // --- Unlock audio on first tap (exhibition setup) ---
-  overlay.addEventListener('click', () => {
-    video.muted = false;
-    video.play().then(() => {
-      video.pause();
-      video.currentTime = 0;
-      audioUnlocked = true;
-      overlay.classList.add('hidden');
-      console.log(`[sub-${displayId}] Audio unlocked`);
-    }).catch((e) => {
-      console.warn(`[sub-${displayId}] Unlock failed:`, e);
-    });
-  });
-
   function onState(state) {
-    if (!audioUnlocked) return;
-
     if (state.isLightOn && !isPlaying) {
       isPlaying = true;
       if (fadeOutTimer) { clearTimeout(fadeOutTimer); fadeOutTimer = null; }
@@ -47,7 +30,6 @@
     }
   }
 
-  // --- WebSocket ---
   const wsUrl = `ws://${location.hostname}:3001`;
   let ws = null;
 
@@ -74,7 +56,6 @@
 
   connect();
 
-  // Prevent screen sleep
   if (navigator.wakeLock) {
     navigator.wakeLock.request('screen').catch(() => {});
   }
