@@ -7,6 +7,8 @@ const CONFIG = {
   recoveryRate: 0.006,
   boredomThreshold: 0.15,
   broadcastInterval: 50,
+  bugSizeMin: 14,
+  bugSizeMax: 24,
 };
 
 let bugs = [];
@@ -150,7 +152,8 @@ class Bug {
     this.millingSpeed = random(0.008, 0.03);
     this.millingRadius = 0;
     this.preferredOrbitRadius = 0;
-    this.baseSize = random(14, 24); this.char = "虫";
+    this.baseSize = random(CONFIG.bugSizeMin, CONFIG.bugSizeMax);
+    this.char = "虫";
     this.tremorPhase = random(TWO_PI); this.tremorFreq = random(0.06, 0.15);
     this.legPhase = random(TWO_PI);
   }
