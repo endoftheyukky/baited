@@ -7,6 +7,21 @@ const HTTP_PORT = 3000;
 const WS_PORT = 3001;
 const LOG_DIR = path.join(__dirname, '..', 'logs');
 
+// --- JST helpers ---
+function toJST(date) {
+  return new Date(date.getTime() + 9 * 60 * 60 * 1000);
+}
+
+function jstDateStr(date) {
+  const jst = toJST(date || new Date());
+  return jst.toISOString().slice(0, 10);
+}
+
+function jstTimeStr(date) {
+  const jst = toJST(date || new Date());
+  return jst.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 // --- Ensure log directory exists ---
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
@@ -16,8 +31,7 @@ const logger = (() => {
   let sessionCount = 0;
 
   function getLogFile() {
-    const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    return path.join(LOG_DIR, `${date}.jsonl`);
+    return path.join(LOG_DIR, `${jstDateStr()}.jsonl`);
   }
 
   function write(entry) {
@@ -31,7 +45,7 @@ const logger = (() => {
     currentSession = {
       id: sessionCount,
       onAt: Date.now(),
-      onTime: new Date().toISOString(),
+      onTime: jstTimeStr(),
       startX: x,
       startY: y,
     };
@@ -45,7 +59,7 @@ const logger = (() => {
       type: 'session',
       id: currentSession.id,
       onTime: currentSession.onTime,
-      offTime: new Date().toISOString(),
+      offTime: jstTimeStr(),
       duration: Math.round(duration * 10) / 10,
       startX: currentSession.startX,
       startY: currentSession.startY,
@@ -74,7 +88,7 @@ const logger = (() => {
     // Hourly breakdown
     const hourly = {};
     sessions.forEach(s => {
-      const h = new Date(s.onTime).getHours();
+      const h = parseInt(s.onTime.slice(11, 13), 10);
       if (!hourly[h]) hourly[h] = { count: 0, totalDuration: 0 };
       hourly[h].count++;
       hourly[h].totalDuration += s.duration;
@@ -222,7 +236,7 @@ app.get('/analytics', (req, res) => {
       <h2>All sessions</h2>
       <div class="session-list">
       ${sessions.map(s => {
-        const t = new Date(s.onTime).toTimeString().slice(0, 8);
+        const t = s.onTime.slice(11, 19);
         return `${t} — ${s.duration}s`;
       }).join('<br>')}
       </div>
