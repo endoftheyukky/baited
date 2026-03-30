@@ -1,5 +1,5 @@
 const sound = (() => {
-  const AUDIO_SRC = 'audio/ambient.mp3';
+  const AUDIO_SRC = 'audio/baited.wav';
   const FADE_IN = 1.5;
   const FADE_OUT = 2.0;
 
