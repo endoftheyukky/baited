@@ -9,7 +9,7 @@
 ## セットアップ
 
 ### 前提
-- Node.js v18以上（https://nodejs.org/ja）
+- Node.js v18以上 https://nodejs.org/ja
 
 ### インストール
 ```bash
